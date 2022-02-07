@@ -10,48 +10,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/tendermint/crypto/bcrypt"
 	"github.com/tendermint/tendermint/crypto/ed25519"
 	"github.com/tendermint/tendermint/crypto/tmhash"
-	"github.com/tendermint/tendermint/libs/bytes"
 )
 
 const (
 	// AddressSize is the size of a pubkey address.
 	AddressSize = tmhash.TruncatedSize
 )
-
-// An address is a []byte, but hex-encoded even in JSON.
-// []byte leaves us the option to change the address length.
-// Use an alias so Unmarshal methods (with ptr receivers) are available too.
-type Address = bytes.HexBytes
-
-func AddressHash(bz []byte) Address {
-	return Address(tmhash.SumTruncated(bz))
-}
-
-type PubKey interface {
-	Address() Address
-	Bytes() []byte
-	VerifySignature(msg []byte, sig []byte) bool
-	Equals(PubKey) bool
-	Type() string
-}
-
-//var _ PubKey := (*PubKey)(nil)
-
-type PrivKey interface {
-	Bytes() []byte
-	Sign(msg []byte) ([]byte, error)
-	PubKey() PubKey
-	Equals(PrivKey) bool
-	Type() string
-}
-
-type Symmetric interface {
-	Keygen() []byte
-	Encrypt(plaintext []byte, secret []byte) (ciphertext []byte)
-	Decrypt(ciphertext []byte, secret []byte) (plaintext []byte, err error)
-}
 
 type KeyPair struct {
 	Address string  `json:"address"`
@@ -64,17 +31,34 @@ type KeyJSON struct {
 	Value string `json:"value"`
 }
 
-func NewPrivKey() (*ed25519.PrivKey, error) {
+type PrivKey = ed25519.PrivKey
+type MyPrivKey ed25519.PrivKey
+
+func NewPrivKey() (*PrivKey, error) {
 	k := ed25519.GenPrivKey()
 	return &k, nil
 }
-func OutputKeyPair(privKey *ed25519.PrivKey, outfile io.Writer) {
-	pubKey := privKey.PubKey()
+
+// NewPrivKeyFromSeed outputs a private key from an input seed.
+// FIXME add a proper salt.
+func NewPrivKeyFromSeed(seed string) (*PrivKey, error) {
+	salt := []byte("1234567890abcdef")
+	secret, err := bcrypt.GenerateFromPassword(salt, []byte(seed), 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	k := ed25519.GenPrivKeyFromSecret(secret)
+	return &k, nil
+}
+
+// OutputKeyPair outputs keypair to stdout in JSON format for Tendermint
+func OutputKeyPair(key *PrivKey, outfile io.Writer) {
+	pubKey := key.PubKey()
 	outputPrivKey := KeyJSON{
 		Type:  "tendermint/PubKeyEd25519",
-		Value: base64.StdEncoding.EncodeToString(*privKey),
+		Value: base64.StdEncoding.EncodeToString(*key),
 	}
-	address := GetAddress(privKey)
+	address := GetAddress(key)
 	kp := KeyPair{
 		Address: address,
 		PrivKey: outputPrivKey,
@@ -88,11 +72,18 @@ func OutputKeyPair(privKey *ed25519.PrivKey, outfile io.Writer) {
 		log.Println(err)
 		os.Exit(1)
 	}
-	fmt.Fprintf(outfile, "%s", out)
+	fmt.Fprintf(outfile, "%s\n", out)
 }
 
-// See if there is a concrete implementation of PubKey()
-func GetAddress(k *ed25519.PrivKey) string {
+// GetAddress returns the node id in the standard Tendermint format
+func GetAddress(k *PrivKey) string {
 	add := k.PubKey().Address()
 	return strings.ToUpper(hex.EncodeToString(add))
+}
+
+// KeyPairFromPrivKey outputs a keypair computed from the input private key
+func KeyPairFromPrivKey(b64KeyString string, outfile io.Writer) {
+	hexBytes, _ := base64.StdEncoding.DecodeString(b64KeyString)
+	var privKey ed25519.PrivKey = hexBytes
+	OutputKeyPair(&privKey, outfile)
 }

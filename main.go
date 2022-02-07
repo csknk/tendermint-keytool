@@ -1,8 +1,15 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"os"
+)
+
+var (
+	b64PrivKeyString string = ""
+	verbose                 = false
 )
 
 type Key struct {
@@ -10,36 +17,36 @@ type Key struct {
 	Value string `json:"value"`
 }
 
-func main() {
-	//	add := pubKey.Address()
-	//	fmt.Printf("Private key: %v\n", hex.EncodeToString(privKey))
-	//	fmt.Printf("Private key: %v\n", base64.StdEncoding.EncodeToString(privKey))
-	//	fmt.Printf("Public key: %v\n", hex.EncodeToString(pubKey.Bytes()))
-	//	fmt.Printf("Public key: %v\n", base64.StdEncoding.EncodeToString(pubKey.Bytes()))
-	//	fmt.Printf("Address: %v\n", add)
-	//	kp := KeyPair{
-	//		Address: address,
-	//		PrivKey: privKey,
-	//		PubKey: Key{
-	//			Type:  "tendermint/PubKeyEd25519",
-	//			Value: base64.StdEncoding.EncodeToString(pubKey.Bytes()),
-	//		},
-	//	}
-	//}
-	//	out, err := json.MarshalIndent(&kp, "", "  ")
-	//	if err != nil {
-	//		log.Println(err)
-	//		os.Exit(1)
-	//	}
-	//
-	//	fmt.Println(string(out))
+func init() {
+	flag.StringVar(&b64PrivKeyString, "secret", "", "Private Key, Base 64 string")
+	flag.BoolVar(&verbose, "v", false, "Verbose")
+}
 
-	privKey, err := NewPrivKey()
+func main() {
+	flag.Parse()
+	if b64PrivKeyString != "" {
+		if verbose {
+			fmt.Println("Generating a public key from the supplied base64 private key...")
+		}
+		KeyPairFromPrivKey(b64PrivKeyString, os.Stdout)
+		return
+	}
+
+	var privKey *PrivKey
+	var err error
+	if len(os.Args) == 2 {
+		if verbose {
+			fmt.Println("Generating key pair from the supplied seed...")
+		}
+		privKey, err = NewPrivKeyFromSeed(os.Args[1])
+	} else {
+		if verbose {
+			fmt.Println("Generating pseuso-random private key and associated public key...")
+		}
+		privKey, err = NewPrivKey()
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	//	fmt.Println(privKey.Bytes())
 	OutputKeyPair(privKey, os.Stdout)
-
 }
