@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -32,21 +31,21 @@ func main() {
 		return
 	}
 
-	var privKey *PrivKey
-	var err error
-	if len(os.Args) == 2 {
-		if verbose {
-			fmt.Println("Generating key pair from the supplied seed...")
-		}
-		privKey, err = NewPrivKeyFromSeed(os.Args[1])
-	} else {
-		if verbose {
-			fmt.Println("Generating pseuso-random private key and associated public key...")
-		}
-		privKey, err = NewPrivKey()
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	OutputKeyPair(privKey, os.Stdout)
+	// var privKey *PrivKey
+	// var err error
+	// if len(os.Args) == 2 {
+	// 	if verbose {
+	// 		fmt.Println("Generating key pair from the supplied seed...")
+	// 	}
+	// 	privKey, err = NewPrivKeyFromSeed(os.Args[1])
+	// } else {
+	// 	if verbose {
+	// 		fmt.Println("Generating pseuso-random private key and associated public key...")
+	// 	}
+	// 	privKey, err = NewPrivKey()
+	// }
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// OutputKeyPair(privKey, os.Stdout)
 }
